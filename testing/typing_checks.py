@@ -8,12 +8,14 @@ none of the code triggers any mypy errors.
 from __future__ import annotations
 
 import contextlib
-from typing import Optional
+from typing import Literal
 
 from typing_extensions import assert_type
 
 import pytest
 from pytest import MonkeyPatch
+from pytest import ScopeName
+from pytest import TestReport
 
 
 # Issue #7488.
@@ -50,4 +52,29 @@ def check_monkeypatch_typeddict(monkeypatch: MonkeyPatch) -> None:
 def check_raises_is_a_context_manager(val: bool) -> None:
     with pytest.raises(RuntimeError) if val else contextlib.nullcontext() as excinfo:
         pass
-    assert_type(excinfo, Optional[pytest.ExceptionInfo[RuntimeError]])
+    assert_type(excinfo, pytest.ExceptionInfo[RuntimeError] | None)
+
+
+# Issue #12941.
+def check_testreport_attributes(report: TestReport) -> None:
+    assert_type(report.when, Literal["setup", "call", "teardown"])
+    assert_type(report.location, tuple[str, int | None, str])
+
+
+# Issue #14234.
+@pytest.mark.parametrize("x", [1, 2], ids=[pytest.HIDDEN_PARAM, "visible"])
+def test_hidden_param(x: int) -> None:
+    pass
+
+
+# Issue #14137.
+def check_scope_typing() -> None:
+
+    custom_scope: ScopeName = "function"
+    assert_type(custom_scope, ScopeName)
+
+
+# Issue #14606.
+@pytest.mark.parametrize("x", [ImportError, AttributeError])
+def check_mypy_bug_with_argvalues(x) -> None:
+    pass

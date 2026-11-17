@@ -1,11 +1,11 @@
 # mypy: allow-untyped-defs
 from __future__ import annotations
 
+from collections.abc import Callable
 import inspect
 from pathlib import Path
 import sys
 import textwrap
-from typing import Callable
 
 from _pytest.doctest import _get_checker
 from _pytest.doctest import _is_main_py
@@ -33,24 +33,24 @@ class TestDoctests:
 
         for x in (pytester.path, checkfile):
             # print "checking that %s returns custom items" % (x,)
-            items, reprec = pytester.inline_genitems(x)
+            items, _reprec = pytester.inline_genitems(x)
             assert len(items) == 1
             assert isinstance(items[0], DoctestItem)
             assert isinstance(items[0].parent, DoctestTextfile)
         # Empty file has no items.
-        items, reprec = pytester.inline_genitems(w)
+        items, _reprec = pytester.inline_genitems(w)
         assert len(items) == 0
 
     def test_collect_module_empty(self, pytester: Pytester):
         path = pytester.makepyfile(whatever="#")
         for p in (path, pytester.path):
-            items, reprec = pytester.inline_genitems(p, "--doctest-modules")
+            items, _reprec = pytester.inline_genitems(p, "--doctest-modules")
             assert len(items) == 0
 
     def test_collect_module_single_modulelevel_doctest(self, pytester: Pytester):
         path = pytester.makepyfile(whatever='""">>> pass"""')
         for p in (path, pytester.path):
-            items, reprec = pytester.inline_genitems(p, "--doctest-modules")
+            items, _reprec = pytester.inline_genitems(p, "--doctest-modules")
             assert len(items) == 1
             assert isinstance(items[0], DoctestItem)
             assert isinstance(items[0].parent, DoctestModule)
@@ -64,7 +64,7 @@ class TestDoctests:
         """
         )
         for p in (path, pytester.path):
-            items, reprec = pytester.inline_genitems(p, "--doctest-modules")
+            items, _reprec = pytester.inline_genitems(p, "--doctest-modules")
             assert len(items) == 2
             assert isinstance(items[0], DoctestItem)
             assert isinstance(items[1], DoctestItem)
@@ -97,7 +97,7 @@ class TestDoctests:
             },
         )
         for p in (path, pytester.path):
-            items, reprec = pytester.inline_genitems(p, "--doctest-modules")
+            items, _reprec = pytester.inline_genitems(p, "--doctest-modules")
             assert len(items) == 2
             assert isinstance(items[0], DoctestItem)
             assert isinstance(items[1], DoctestItem)
@@ -223,9 +223,12 @@ class TestDoctests:
                 "002 >>> 0 / i",
                 "UNEXPECTED EXCEPTION: ZeroDivisionError*",
                 "Traceback (most recent call last):",
-                '  File "*/doctest.py", line *, in __run',
-                "    *",
-                *((" *^^^^*", " *", " *") if sys.version_info >= (3, 13) else ()),
+                *(
+                    ('  File "*/doctest.py", line *, in __run', "    *")
+                    if sys.version_info <= (3, 14)
+                    else ()
+                ),
+                *((" *^^^^*", " *", " *") if sys.version_info[:2] == (3, 13) else ()),
                 '  File "<doctest test_doctest_unexpected_exception.txt[1]>", line 1, in <module>',
                 "ZeroDivisionError: division by zero",
                 "*/test_doctest_unexpected_exception.txt:2: UnexpectedException",
@@ -597,6 +600,37 @@ class TestDoctests:
         reprec = pytester.inline_run(p, "--doctest-modules")
         reprec.assertoutcome(passed=1)
 
+    def test_module_fixture_available_to_normal_test_with_doctestmodules(
+        self, pytester: Pytester
+    ) -> None:
+        """Regression test for #14533.
+
+        Module-level fixtures collected with ``--doctest-modules`` are available
+        both to normal tests and doctests in the same file.
+        """
+        pytester.makepyfile(
+            """
+            import pytest
+
+            @pytest.fixture
+            def fix():
+                return "fix"
+
+            def test(fix):
+                assert fix == "fix"
+
+            def func():
+                '''My function.
+
+                >>> getfixture("fix")
+                'fix'
+                '''
+            """
+        )
+
+        result = pytester.runpytest("--doctest-modules")
+        result.assert_outcomes(passed=2)
+
     def test_doctestmodule_three_tests(self, pytester: Pytester):
         p = pytester.makepyfile(
             """
@@ -837,7 +871,7 @@ class TestDoctests:
                 return 'c'
         """
         )
-        items, reprec = pytester.inline_genitems(p, "--doctest-modules")
+        items, _reprec = pytester.inline_genitems(p, "--doctest-modules")
         reportinfo = items[0].reportinfo()
         assert reportinfo[1] == 1
 
@@ -904,7 +938,7 @@ class TestLiterals:
     def test_allow_unicode(self, pytester, config_mode):
         """Test that doctests which output unicode work in all python versions
         tested by pytest when the ALLOW_UNICODE option is used (either in
-        the ini file or by an inline comment).
+        the configuration file or by an inline comment).
         """
         if config_mode == "ini":
             pytester.makeini(
@@ -939,7 +973,7 @@ class TestLiterals:
     def test_allow_bytes(self, pytester, config_mode):
         """Test that doctests which output bytes work in all python versions
         tested by pytest when the ALLOW_BYTES option is used (either in
-        the ini file or by an inline comment)(#1287).
+        the configuration file or by an inline comment)(#1287).
         """
         if config_mode == "ini":
             pytester.makeini(
@@ -1299,6 +1333,37 @@ class TestDoctestAutoUseFixtures:
         result = pytester.runpytest("--doctest-modules")
         result.stdout.fnmatch_lines(["*2 passed*"])
 
+    def test_doctest_and_python_fixtures_not_shared(self, pytester: Pytester) -> None:
+        """Fixture scopes are not shared between doctest and python modules.
+
+        This test is not meant as a hard behavioral test -- sharing scope is
+        also an acceptable behavior (see #14533). But this test ensures and
+        behavior change is done knowingly.
+        """
+        pytester.makepyfile(
+            r"""
+            import pytest
+
+            @pytest.fixture(scope="session", autouse=True)
+            def auto():
+                with open("out", "a", encoding="utf-8") as f:
+                    f.write("RUN\n")
+
+            def test():
+                pass
+
+            def func():
+                '''My function.
+
+                >>> 1 + 1
+                2
+                '''
+        """
+        )
+        result = pytester.runpytest("--doctest-modules")
+        result.assert_outcomes(passed=2)
+        assert Path("out").read_text("utf-8").split() == ["RUN"] * 2
+
     @pytest.mark.parametrize("scope", SCOPES)
     @pytest.mark.parametrize("enable_doctest", [True, False])
     def test_fixture_scopes(self, pytester, scope, enable_doctest):
@@ -1328,7 +1393,7 @@ class TestDoctestAutoUseFixtures:
         params = ("--doctest-modules",) if enable_doctest else ()
         passes = 3 if enable_doctest else 2
         result = pytester.runpytest(*params)
-        result.stdout.fnmatch_lines(["*=== %d passed in *" % passes])
+        result.stdout.fnmatch_lines([f"*=== {passes} passed in *"])
 
     @pytest.mark.parametrize("scope", SCOPES)
     @pytest.mark.parametrize("autouse", [True, False])
@@ -1593,7 +1658,14 @@ class Broken:
 
 
 @pytest.mark.parametrize(  # pragma: no branch (lambdas are not called)
-    "stop", [None, _is_mocked, lambda f: None, lambda f: False, lambda f: True]
+    "stop",
+    [
+        None,
+        pytest.param(_is_mocked, id="is_mocked"),
+        pytest.param(lambda f: None, id="lambda_none"),
+        pytest.param(lambda f: False, id="lambda_false"),
+        pytest.param(lambda f: True, id="lambda_true"),
+    ],
 )
 def test_warning_on_unwrap_of_broken_object(
     stop: Callable[[object], object] | None,

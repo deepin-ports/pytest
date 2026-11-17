@@ -10,10 +10,10 @@ Forwarded: not-needed
  1 file changed, 3 deletions(-)
 
 diff --git a/doc/en/conf.py b/doc/en/conf.py
-index d99e75e..0e33bcf 100644
+index 359d856..c795b4a 100644
 --- a/doc/en/conf.py
 +++ b/doc/en/conf.py
-@@ -27,14 +27,11 @@ release = ".".join(version.split(".")[:2])
+@@ -27,15 +27,12 @@ release = ".".join(version.split(".")[:2])
  
  root_doc = "index"
  extensions = [
@@ -24,6 +24,7 @@ index d99e75e..0e33bcf 100644
      "sphinx.ext.todo",
      "sphinx.ext.viewcode",
 -    "sphinx_removed_in",
+     "sphinx_inline_tabs",
 -    "sphinxcontrib_trio",
      "sphinxcontrib.towncrier.ext",  # provides `towncrier-draft-entries` directive
      "sphinx_issues",  # implements `:issue:`, `:pr:` and other GH-related roles

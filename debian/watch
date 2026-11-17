@@ -1,3 +1,6 @@
-version=4
-opts=uversionmangle=s/(rc|a|b|c)/~$1/ \
-https://pypi.debian.net/pytest/pytest-(.+)\.(?:zip|tgz|tbz|txz|(?:tar\.(?:gz|bz2|xz)))
+Version: 5
+
+Source: https://pypi.debian.net/pytest/
+Matching-Pattern: pytest-@SEMANTIC_VERSION@@ARCHIVE_EXT@
+Uversion-Mangle: auto
+Dversion-Mangle: auto

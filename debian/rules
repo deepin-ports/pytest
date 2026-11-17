@@ -1,6 +1,8 @@
 #!/usr/bin/make -f
 # -*- makefile -*-
 
+include /usr/share/dpkg/pkg-info.mk
+
 export PYBUILD_NAME=pytest
 
 # 2015-12-16 barry@debian.org: Because pytest does not clean up after itself,
@@ -25,3 +27,7 @@ ifeq (,$(filter nodoc,$(DEB_BUILD_OPTIONS)))
 		SPHINXBUILD=/usr/share/sphinx/scripts/python3/sphinx-build \
 		$(MAKE) -C doc/en man html
 endif
+
+override_dh_gencontrol:
+	dh_gencontrol -ppython3-pytest-subtests -- -v0.15.0++$(DEB_VERSION_UPSTREAM_REVISION)
+	dh_gencontrol --remaining-packages

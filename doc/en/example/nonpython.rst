@@ -28,7 +28,7 @@ now execute the test specification:
 
     nonpython $ pytest test_simple.yaml
     =========================== test session starts ============================
-    platform linux -- Python 3.x.y, pytest-8.x.y, pluggy-1.x.y
+    platform linux -- Python 3.x.y, pytest-9.x.y, pluggy-1.x.y
     rootdir: /home/sweet/project/nonpython
     collected 2 items
 
@@ -40,7 +40,7 @@ now execute the test specification:
        spec failed: 'some': 'other'
        no further details known at this point.
     ========================= short test summary info ==========================
-    FAILED test_simple.yaml::hello
+    FAILED test_simple.yaml::hello - usecase execution failed
     ======================= 1 failed, 1 passed in 0.12s ========================
 
 .. regendoc:wipe
@@ -48,7 +48,7 @@ now execute the test specification:
 You get one dot for the passing ``sub1: sub1`` check and one failure.
 Obviously in the above ``conftest.py`` you'll want to implement a more
 interesting interpretation of the yaml-values.  You can easily write
-your own domain specific testing language this way.
+your own domain-specific testing language this way.
 
 .. note::
 
@@ -58,13 +58,18 @@ your own domain specific testing language this way.
     will be reported as a (red) string.
 
 ``reportinfo()`` is used for representing the test location and is also
-consulted when reporting in ``verbose`` mode:
+consulted when reporting in ``verbose`` mode. It should return a tuple
+``(path, lineno, description)``, where:
+
+* ``path`` is the path shown in reports (usually ``self.path`` or ``self.fspath``).
+* ``lineno`` is a zero-based line number, or ``0`` when no specific line applies.
+* ``description`` is a short label shown for the collected item:
 
 .. code-block:: pytest
 
     nonpython $ pytest -v
     =========================== test session starts ============================
-    platform linux -- Python 3.x.y, pytest-8.x.y, pluggy-1.x.y -- $PYTHON_PREFIX/bin/python
+    platform linux -- Python 3.x.y, pytest-9.x.y, pluggy-1.x.y -- $PYTHON_PREFIX/bin/python
     cachedir: .pytest_cache
     rootdir: /home/sweet/project/nonpython
     collecting ... collected 2 items
@@ -78,19 +83,19 @@ consulted when reporting in ``verbose`` mode:
        spec failed: 'some': 'other'
        no further details known at this point.
     ========================= short test summary info ==========================
-    FAILED test_simple.yaml::hello
+    FAILED test_simple.yaml::hello - usecase execution failed
     ======================= 1 failed, 1 passed in 0.12s ========================
 
 .. regendoc:wipe
 
 While developing your custom test collection and execution it's also
-interesting to just look at the collection tree:
+interesting to look at the collection tree:
 
 .. code-block:: pytest
 
     nonpython $ pytest --collect-only
     =========================== test session starts ============================
-    platform linux -- Python 3.x.y, pytest-8.x.y, pluggy-1.x.y
+    platform linux -- Python 3.x.y, pytest-9.x.y, pluggy-1.x.y
     rootdir: /home/sweet/project/nonpython
     collected 2 items
 

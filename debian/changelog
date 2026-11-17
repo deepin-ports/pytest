@@ -1,3 +1,93 @@
+pytest (9.1.1-1) unstable; urgency=medium
+
+  * New upstream version 9.1.1
+  * Refresh patches (no functional changes)
+  * debian/copyright: use spaces rather than tabs to start continuation lines.
+  * Remove redundant Priority: optional from source stanza.
+
+ -- Timo Röhling <roehling@debian.org>  Sat, 20 Jun 2026 09:19:56 +0200
+
+pytest (9.0.3-1) unstable; urgency=medium
+
+  * New upstream version 9.0.3
+  * Bump Standards-Version to 4.7.4
+
+ -- Timo Röhling <roehling@debian.org>  Fri, 10 Apr 2026 18:07:24 +0200
+
+pytest (9.0.2-4) unstable; urgency=medium
+
+  * Source only upload.
+
+ -- Timo Röhling <roehling@debian.org>  Thu, 05 Mar 2026 09:54:28 +0100
+
+pytest (9.0.2-3) unstable; urgency=medium
+
+  * Add python3-pytest-subtests transitional dummy package (Closes: #1127333)
+  * Bump Standards-Version to 4.7.3
+
+ -- Timo Röhling <roehling@debian.org>  Tue, 03 Mar 2026 17:38:38 +0100
+
+pytest (9.0.2-2) unstable; urgency=medium
+
+  * Upload to unstable.
+
+ -- Timo Röhling <roehling@debian.org>  Sun, 14 Dec 2025 22:52:49 +0100
+
+pytest (9.0.2-1) experimental; urgency=medium
+
+  * New upstream version 9.0.2
+  * pytest-subtests is part of pytest itself now
+
+ -- Timo Röhling <roehling@debian.org>  Tue, 09 Dec 2025 11:07:17 +0100
+
+pytest (9.0.1-1) experimental; urgency=medium
+
+  * New upstream version 9.0.1
+
+ -- Timo Röhling <roehling@debian.org>  Sat, 15 Nov 2025 11:30:03 +0100
+
+pytest (9.0.0-1) experimental; urgency=medium
+
+  [ Alexandre Detiste ]
+  * update description "py.test" -> "pytest"
+  * drop "Rules-Requires-Root: no": it is the default now
+
+  [ Timo Röhling ]
+  * New upstream version 9.0.0
+  * Refresh patches (no functional changes)
+  * New dependency python3-sphinx-inline-tabs
+
+ -- Timo Röhling <roehling@debian.org>  Tue, 11 Nov 2025 09:38:48 +0100
+
+pytest (8.4.2-1) unstable; urgency=medium
+
+  * Migrate debian/watch to version 5 format
+  * New upstream version 8.4.2
+
+ -- Timo Röhling <roehling@debian.org>  Sun, 07 Sep 2025 19:21:54 +0200
+
+pytest (8.4.1-1) unstable; urgency=medium
+
+  * New upstream version 8.4.1
+  * Update patches
+    - Merged: 0004-Fix-attrs-25.2-compatibility.patch
+  * Need at least pluggy 1.6.0 due to StopIteration issue
+
+ -- Timo Röhling <roehling@debian.org>  Wed, 13 Aug 2025 12:46:36 +0200
+
+pytest (8.3.5-2) unstable; urgency=medium
+
+  * Fix compatibility with attrs >= 25.2 (Closes: #1101860)
+  * Bump Standards-Version to 4.7.2
+
+ -- Timo Röhling <roehling@debian.org>  Tue, 01 Apr 2025 21:35:12 +0200
+
+pytest (8.3.5-1) unstable; urgency=medium
+
+  * New upstream version 8.3.5
+
+ -- Timo Röhling <roehling@debian.org>  Sun, 09 Mar 2025 20:15:54 +0100
+
 pytest (8.3.4-1) unstable; urgency=medium
 
   * New upstream version 8.3.4

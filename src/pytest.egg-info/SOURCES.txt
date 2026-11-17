@@ -1,7 +1,7 @@
-.coveragerc
 .git-blame-ignore-revs
 .gitattributes
 .gitignore
+.mailmap
 .pre-commit-config.yaml
 .readthedocs.yaml
 AUTHORS
@@ -13,6 +13,7 @@ LICENSE
 OPENCOLLECTIVE.rst
 README.rst
 RELEASING.rst
+SECURITY.md
 TIDELIFT.rst
 codecov.yml
 pyproject.toml
@@ -26,8 +27,10 @@ tox.ini
 .github/patchback.yml
 .github/ISSUE_TEMPLATE/1_bug_report.md
 .github/ISSUE_TEMPLATE/2_feature_request.md
+.github/ISSUE_TEMPLATE/3_security_vulnerability.md
 .github/ISSUE_TEMPLATE/config.yml
 .github/workflows/deploy.yml
+.github/workflows/doc-check-links.yml
 .github/workflows/prepare-release-pr.yml
 .github/workflows/stale.yml
 .github/workflows/test.yml
@@ -250,7 +253,18 @@ doc/en/announce/release-8.3.1.rst
 doc/en/announce/release-8.3.2.rst
 doc/en/announce/release-8.3.3.rst
 doc/en/announce/release-8.3.4.rst
+doc/en/announce/release-8.3.5.rst
+doc/en/announce/release-8.4.0.rst
+doc/en/announce/release-8.4.1.rst
+doc/en/announce/release-8.4.2.rst
+doc/en/announce/release-9.0.0.rst
+doc/en/announce/release-9.0.1.rst
+doc/en/announce/release-9.0.2.rst
+doc/en/announce/release-9.0.3.rst
+doc/en/announce/release-9.1.0.rst
+doc/en/announce/release-9.1.1.rst
 doc/en/announce/sprint2016.rst
+doc/en/example/.ruff.toml
 doc/en/example/attic.rst
 doc/en/example/conftest.py
 doc/en/example/customdirectory.rst
@@ -303,6 +317,7 @@ doc/en/explanation/flaky.rst
 doc/en/explanation/goodpractices.rst
 doc/en/explanation/index.rst
 doc/en/explanation/pythonpath.rst
+doc/en/explanation/types.rst
 doc/en/how-to/assert.rst
 doc/en/how-to/bash-completion.rst
 doc/en/how-to/cache.rst
@@ -320,6 +335,7 @@ doc/en/how-to/output.rst
 doc/en/how-to/parametrize.rst
 doc/en/how-to/plugins.rst
 doc/en/how-to/skipping.rst
+doc/en/how-to/subtests.rst
 doc/en/how-to/tmp_path.rst
 doc/en/how-to/unittest.rst
 doc/en/how-to/usage.rst
@@ -381,7 +397,7 @@ src/_pytest/pytester.py
 src/_pytest/pytester_assertions.py
 src/_pytest/python.py
 src/_pytest/python_api.py
-src/_pytest/python_path.py
+src/_pytest/raises.py
 src/_pytest/recwarn.py
 src/_pytest/reports.py
 src/_pytest/runner.py
@@ -391,10 +407,13 @@ src/_pytest/setupplan.py
 src/_pytest/skipping.py
 src/_pytest/stash.py
 src/_pytest/stepwise.py
+src/_pytest/subtests.py
 src/_pytest/terminal.py
+src/_pytest/terminalprogress.py
 src/_pytest/threadexception.py
 src/_pytest/timing.py
 src/_pytest/tmpdir.py
+src/_pytest/tracemalloc.py
 src/_pytest/unittest.py
 src/_pytest/unraisableexception.py
 src/_pytest/warning_types.py
@@ -411,12 +430,19 @@ src/_pytest/_py/__init__.py
 src/_pytest/_py/error.py
 src/_pytest/_py/path.py
 src/_pytest/assertion/__init__.py
+src/_pytest/assertion/_compare_any.py
+src/_pytest/assertion/_compare_mapping.py
+src/_pytest/assertion/_compare_sequence.py
+src/_pytest/assertion/_compare_set.py
+src/_pytest/assertion/_guards.py
+src/_pytest/assertion/_typing.py
+src/_pytest/assertion/compare_text.py
+src/_pytest/assertion/highlight.py
 src/_pytest/assertion/rewrite.py
 src/_pytest/assertion/truncate.py
 src/_pytest/assertion/util.py
 src/_pytest/config/__init__.py
 src/_pytest/config/argparsing.py
-src/_pytest/config/compat.py
 src/_pytest/config/exceptions.py
 src/_pytest/config/findpaths.py
 src/_pytest/mark/__init__.py
@@ -439,6 +465,7 @@ testing/test_assertion.py
 testing/test_assertrewrite.py
 testing/test_cacheprovider.py
 testing/test_capture.py
+testing/test_collect_imported_tests.py
 testing/test_collection.py
 testing/test_compat.py
 testing/test_config.py
@@ -476,6 +503,7 @@ testing/test_setupplan.py
 testing/test_skipping.py
 testing/test_stash.py
 testing/test_stepwise.py
+testing/test_subtests.py
 testing/test_terminal.py
 testing/test_threadexception.py
 testing/test_tmpdir.py
@@ -484,6 +512,7 @@ testing/test_unraisableexception.py
 testing/test_warning_types.py
 testing/test_warnings.py
 testing/typing_checks.py
+testing/typing_raises_group.py
 testing/_py/test_local.py
 testing/code/test_code.py
 testing/code/test_excinfo.py
@@ -603,4 +632,5 @@ testing/python/fixtures.py
 testing/python/integration.py
 testing/python/metafunc.py
 testing/python/raises.py
+testing/python/raises_group.py
 testing/python/show_fixtures_per_test.py

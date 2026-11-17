@@ -1,10 +1,13 @@
 # mypy: allow-untyped-defs
 from __future__ import annotations
 
+from collections.abc import Iterator
+from collections.abc import Mapping
+from collections.abc import MutableSequence
+import dataclasses
 import sys
 import textwrap
 from typing import Any
-from typing import MutableSequence
 from typing import NamedTuple
 
 import attr
@@ -13,18 +16,30 @@ from _pytest import outcomes
 import _pytest.assertion as plugin
 from _pytest.assertion import truncate
 from _pytest.assertion import util
+from _pytest.assertion._compare_any import _compare_eq_cls
+from _pytest.assertion.compare_text import _compare_eq_text
 from _pytest.config import Config as _Config
 from _pytest.monkeypatch import MonkeyPatch
 from _pytest.pytester import Pytester
 import pytest
 
 
-def mock_config(verbose: int = 0, assertion_override: int | None = None):
+def mock_config(
+    verbose: int = 0,
+    assertion_override: int | None = None,
+    assertion_text_diff_style: str = util.ASSERTION_TEXT_DIFF_STYLE_NDIFF,
+):
     class TerminalWriter:
         def _highlight(self, source, lexer="python"):
             return source
 
+    class PluginManager:
+        def has_plugin(self, name: str) -> bool:
+            return True
+
     class Config:
+        pluginmanager = PluginManager()
+
         def get_terminal_writer(self):
             return TerminalWriter()
 
@@ -37,6 +52,11 @@ def mock_config(verbose: int = 0, assertion_override: int | None = None):
                 return verbose
 
             raise KeyError(f"Not mocked out: {verbosity_type}")
+
+        def getini(self, name: str) -> str:
+            if name == util.ASSERTION_TEXT_DIFF_STYLE_INI:
+                return assertion_text_diff_style
+            raise KeyError(f"Not mocked out: {name}")
 
     return Config()
 
@@ -74,6 +94,12 @@ class TestMockConfig:
 
         with pytest.raises(KeyError):
             config.get_verbosity("--- NOT A VERBOSITY LEVEL ---")
+
+    def test_getini_unsupported_error(self):
+        config = mock_config()
+
+        with pytest.raises(KeyError, match="Not mocked out: --- NOT AN INI ---"):
+            config.getini("--- NOT AN INI ---")
 
 
 class TestImportHookInstallation:
@@ -218,10 +244,36 @@ class TestImportHookInstallation:
         assert result.ret == 0
 
     @pytest.mark.parametrize("mode", ["plain", "rewrite"])
+    @pytest.mark.parametrize("disable_plugin_autoload", ["env_var", "cli", ""])
+    @pytest.mark.parametrize("explicit_specify", ["env_var", "cli", ""])
     def test_installed_plugin_rewrite(
-        self, pytester: Pytester, mode, monkeypatch
+        self,
+        pytester: Pytester,
+        mode: str,
+        monkeypatch: pytest.MonkeyPatch,
+        disable_plugin_autoload: str,
+        explicit_specify: str,
     ) -> None:
-        monkeypatch.delenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", raising=False)
+        args = ["mainwrapper.py", "-s", f"--assert={mode}"]
+        if disable_plugin_autoload == "env_var":
+            monkeypatch.setenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
+        elif disable_plugin_autoload == "cli":
+            monkeypatch.delenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", raising=False)
+            args.append("--disable-plugin-autoload")
+        else:
+            assert disable_plugin_autoload == ""
+            monkeypatch.delenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", raising=False)
+
+        name = "spamplugin"
+
+        if explicit_specify == "env_var":
+            monkeypatch.setenv("PYTEST_PLUGINS", name)
+        elif explicit_specify == "cli":
+            args.append("-p")
+            args.append(name)
+        else:
+            assert explicit_specify == ""
+
         # Make sure the hook is installed early enough so that plugins
         # installed via distribution package are rewritten.
         pytester.mkdir("hampkg")
@@ -250,7 +302,7 @@ class TestImportHookInstallation:
             import pytest
 
             class DummyEntryPoint(object):
-                name = 'spam'
+                name = 'spamplugin'
                 module_name = 'spam.py'
                 group = 'pytest11'
 
@@ -275,20 +327,29 @@ class TestImportHookInstallation:
                 check_first([10, 30], 30)
 
             def test2(check_first2):
-                check_first([10, 30], 30)
+                check_first2([10, 30], 30)
             """,
         }
         pytester.makepyfile(**contents)
-        result = pytester.run(
-            sys.executable, "mainwrapper.py", "-s", f"--assert={mode}"
-        )
+        result = pytester.run(sys.executable, *args)
         if mode == "plain":
             expected = "E       AssertionError"
         elif mode == "rewrite":
             expected = "*assert 10 == 30*"
         else:
             assert 0
-        result.stdout.fnmatch_lines([expected])
+
+        if not disable_plugin_autoload or explicit_specify:
+            result.assert_outcomes(failed=2)
+            result.stdout.fnmatch_lines([expected, expected])
+        else:
+            result.assert_outcomes(errors=2)
+            result.stdout.fnmatch_lines(
+                [
+                    "E       fixture 'check_first' not found",
+                    "E       fixture 'check_first2' not found",
+                ]
+            )
 
     def test_rewrite_ast(self, pytester: Pytester) -> None:
         pytester.mkdir("pkg")
@@ -369,13 +430,33 @@ class TestBinReprIntegration:
         result.stdout.fnmatch_lines(["*test_hello*FAIL*", "*test_check*PASS*"])
 
 
-def callop(op: str, left: Any, right: Any, verbose: int = 0) -> list[str] | None:
-    config = mock_config(verbose=verbose)
+def callop(
+    op: str,
+    left: Any,
+    right: Any,
+    verbose: int = 0,
+    assertion_text_diff_style: str = util.ASSERTION_TEXT_DIFF_STYLE_NDIFF,
+) -> list[str] | None:
+    config = mock_config(
+        verbose=verbose,
+        assertion_text_diff_style=assertion_text_diff_style,
+    )
     return plugin.pytest_assertrepr_compare(config, op, left, right)
 
 
-def callequal(left: Any, right: Any, verbose: int = 0) -> list[str] | None:
-    return callop("==", left, right, verbose)
+def callequal(
+    left: Any,
+    right: Any,
+    verbose: int = 0,
+    assertion_text_diff_style: str = util.ASSERTION_TEXT_DIFF_STYLE_NDIFF,
+) -> list[str] | None:
+    return callop(
+        "==",
+        left,
+        right,
+        verbose,
+        assertion_text_diff_style=assertion_text_diff_style,
+    )
 
 
 class TestAssert_reprcompare:
@@ -396,12 +477,35 @@ class TestAssert_reprcompare:
             "+ spam",
         ]
 
+    def test_text_diff_ndiff_style(self) -> None:
+        assert list(
+            _compare_eq_text(
+                "spam",
+                "eggs",
+                util.dummy_highlighter,
+                0,
+                util.ASSERTION_TEXT_DIFF_STYLE_NDIFF,
+            )
+        ) == [
+            "- eggs",
+            "+ spam",
+        ]
+
     def test_text_skipping(self) -> None:
         lines = callequal("a" * 50 + "spam", "a" * 50 + "eggs")
         assert lines is not None
         assert "Skipping" in lines[2]
         for line in lines:
             assert "a" * 50 not in line
+
+    def test_text_skipping_trailing(self) -> None:
+        # Same length, differ at index 1, then ~50 identical trailing chars.
+        # Exercises the trailing-skip branch in ``_diff_text``.
+        lines = callequal("a" + "x" + "z" * 50, "a" + "y" + "z" * 50)
+        assert lines is not None
+        assert any("identical trailing" in line for line in lines)
+        for line in lines:
+            assert "z" * 50 not in line
 
     def test_text_skipping_verbose(self) -> None:
         lines = callequal("a" * 50 + "spam", "a" * 50 + "eggs", verbose=1)
@@ -416,6 +520,58 @@ class TestAssert_reprcompare:
         assert diff is not None
         assert "- eggs" in diff
         assert "+ spam" in diff
+
+    def test_multiline_text_diff_block(self) -> None:
+        assert callequal(
+            "foo\nspam\nbar",
+            "foo\neggs\nbar",
+            assertion_text_diff_style=util.ASSERTION_TEXT_DIFF_STYLE_BLOCK,
+        ) == [
+            r"'foo\nspam\nbar' == 'foo\neggs\nbar'",
+            "",
+            "Left:",
+            "  foo",
+            "  spam",
+            "  bar",
+            "",
+            "Right:",
+            "  foo",
+            "  eggs",
+            "  bar",
+        ]
+
+    def test_multiline_text_diff_block_preserves_blank_lines(self) -> None:
+        assert callequal(
+            "\nfoo\n",
+            "\nbar",
+            assertion_text_diff_style=util.ASSERTION_TEXT_DIFF_STYLE_BLOCK,
+        ) == [
+            r"'\nfoo\n' == '\nbar'",
+            "",
+            "Left:",
+            "  ",
+            "  foo",
+            "  ",
+            "",
+            "Right:",
+            "  ",
+            "  bar",
+        ]
+
+    def test_single_line_text_diff_block(self) -> None:
+        assert callequal(
+            "spam",
+            "eggs",
+            assertion_text_diff_style=util.ASSERTION_TEXT_DIFF_STYLE_BLOCK,
+        ) == [
+            "'spam' == 'eggs'",
+            "",
+            "Left:",
+            "  spam",
+            "",
+            "Right:",
+            "  eggs",
+        ]
 
     def test_bytes_diff_normal(self) -> None:
         """Check special handling for bytes diff (#5260)"""
@@ -531,6 +687,11 @@ class TestAssert_reprcompare:
         monkeypatch.setenv("CI", "true")
         result = pytester.runpytest()
         result.stdout.fnmatch_lines(["E         Full diff:"])
+
+        # Setting CI to empty string is same as having it undefined
+        monkeypatch.setenv("CI", "")
+        result = pytester.runpytest()
+        result.stdout.fnmatch_lines(["E         Use -v to get more diff"])
 
         monkeypatch.delenv("CI", raising=False)
         result = pytester.runpytest()
@@ -741,6 +902,38 @@ class TestAssert_reprcompare:
             "  }",
         ]
 
+    def test_mapping_different_items(self) -> None:
+        class SimpleMapping(Mapping[str, int]):
+            def __init__(self, values: dict[str, int]) -> None:
+                self._values = values
+
+            def __getitem__(self, key: str) -> int:
+                return self._values[key]
+
+            def __iter__(self) -> Iterator[str]:
+                return iter(self._values)
+
+            def __len__(self) -> int:  # pragma: no cover
+                return len(self._values)
+
+            def __repr__(self) -> str:
+                return f"SimpleMapping({self._values!r})"
+
+        lines = callequal(
+            SimpleMapping({"a": 0, "b": 1}),
+            SimpleMapping({"a": 1, "b": 1, "c": 2}),
+        )
+
+        assert lines is not None
+        assert lines[2:] == [
+            "Omitting 1 identical items, use -vv to show",
+            "Differing items:",
+            "{'a': 0} != {'a': 1}",
+            "Right contains 1 more item:",
+            "{'c': 2}",
+            "Use -v to get more diff",
+        ]
+
     def test_sequence_different_items(self) -> None:
         lines = callequal((1, 2), (3, 4, 5), verbose=2)
         assert lines == [
@@ -850,7 +1043,9 @@ class TestAssert_reprcompare:
         assert expl is not None
         assert expl[0].startswith("{} == <[ValueError")
         assert "raised in repr" in expl[0]
-        assert expl[2:] == [
+        # Streaming explanation: any per-line output produced before the
+        # bad repr is preserved, then the failure notice is appended.
+        assert expl[-2:] == [
             "(pytest_assertion plugin: representation of details failed:"
             f" {__file__}:{A.__repr__.__code__.co_firstlineno + 1}: ValueError: 42.",
             " Probably an object has a faulty __repr__.)",
@@ -1354,6 +1549,17 @@ class TestTruncateExplanation:
         assert result == expl
         assert "truncated" not in result[-1]
 
+    def test_truncates_full_line_because_of_max_chars(self) -> None:
+        """A line is fully truncated because of the max_chars value."""
+        expl = ["a" * 10, "b" * 71]
+        result = truncate._truncate_explanation(expl, max_lines=10, max_chars=10)
+        assert result == [
+            "a" * 10,
+            "...",
+            "",
+            "...Full output truncated (1 line hidden), use '-vv' to show",
+        ]
+
     def test_truncates_edgecase_when_truncation_message_makes_the_result_longer_for_chars(
         self,
     ) -> None:
@@ -1406,15 +1612,14 @@ class TestTruncateExplanation:
         line_len = 100
         expected_truncated_lines = 2
         pytester.makepyfile(
-            r"""
+            rf"""
             def test_many_lines():
-                a = list([str(i)[0] * %d for i in range(%d)])
+                a = list([str(i)[0] * {line_len} for i in range({line_count})])
                 b = a[::2]
                 a = '\n'.join(map(str, a))
                 b = '\n'.join(map(str, b))
                 assert a == b
         """
-            % (line_len, line_count)
         )
         monkeypatch.delenv("CI", raising=False)
 
@@ -1424,16 +1629,87 @@ class TestTruncateExplanation:
             [
                 "*+ 1*",
                 "*+ 3*",
-                "*truncated (%d lines hidden)*use*-vv*" % expected_truncated_lines,
+                f"*truncated ({expected_truncated_lines} lines hidden)*use*-vv*",
             ]
         )
 
         result = pytester.runpytest("-vv")
         result.stdout.fnmatch_lines(["* 6*"])
 
+        # Setting CI to empty string is same as having it undefined
+        monkeypatch.setenv("CI", "")
+        result = pytester.runpytest()
+        result.stdout.fnmatch_lines(
+            [
+                "*+ 1*",
+                "*+ 3*",
+                f"*truncated ({expected_truncated_lines} lines hidden)*use*-vv*",
+            ]
+        )
+
         monkeypatch.setenv("CI", "1")
         result = pytester.runpytest()
         result.stdout.fnmatch_lines(["* 6*"])
+
+    @pytest.mark.parametrize(
+        ["truncation_lines", "truncation_chars", "expected_lines_hidden"],
+        (
+            (3, None, 3),
+            (4, None, 0),
+            (0, None, 0),
+            (None, 8, 6),
+            (None, 9, 0),
+            (None, 0, 0),
+            (0, 0, 0),
+            (0, 1000, 0),
+            (1000, 0, 0),
+        ),
+    )
+    def test_truncation_with_ini(
+        self,
+        monkeypatch,
+        pytester: Pytester,
+        truncation_lines: int | None,
+        truncation_chars: int | None,
+        expected_lines_hidden: int,
+    ) -> None:
+        pytester.makepyfile(
+            """\
+            string_a = "123456789\\n23456789\\n3"
+            string_b = "123456789\\n23456789\\n4"
+
+            def test():
+                assert string_a == string_b
+            """
+        )
+
+        # This test produces 6 lines of diff output or 79 characters
+        # So the effect should be when threshold is < 4 lines (considering 2 additional lines for explanation)
+        # Or < 9 characters (considering 70 additional characters for explanation)
+
+        monkeypatch.delenv("CI", raising=False)
+
+        ini = "[pytest]\n"
+        if truncation_lines is not None:
+            ini += f"truncation_limit_lines = {truncation_lines}\n"
+        if truncation_chars is not None:
+            ini += f"truncation_limit_chars = {truncation_chars}\n"
+        pytester.makeini(ini)
+
+        result = pytester.runpytest()
+
+        if expected_lines_hidden != 0:
+            result.stdout.fnmatch_lines(
+                [f"*truncated ({expected_lines_hidden} lines hidden)*"]
+            )
+        else:
+            result.stdout.no_fnmatch_line("*truncated*")
+            result.stdout.fnmatch_lines(
+                [
+                    "*- 4*",
+                    "*+ 3*",
+                ]
+            )
 
 
 def test_python25_compile_issue257(pytester: Pytester) -> None:
@@ -1472,6 +1748,42 @@ def test_reprcompare_notin() -> None:
         "  aaafoobbb",
         "?    +++",
     ]
+
+
+def test_reprcompare_notin_nontext() -> None:
+    # ``not in`` with non-text operands has no specialised explanation.
+    assert callop("not in", 1, [1, 2]) is None
+
+
+def test_reprcompare_notin_long_text() -> None:
+    # Long enough surrounding context to make the underlying ``_diff_text`` call
+    # emit a "Skipping ... identical leading characters" line, which
+    # ``_notin_text`` filters out.
+    lines = callop("not in", "x", "a" * 50 + "x")
+    assert lines is not None
+    assert not any("Skipping" in line for line in lines)
+
+
+def test_compare_eq_cls_no_comparable_fields() -> None:
+    # A dataclass with no compared fields always compares equal, so the
+    # comparison hook is never reached via a failed assertion. Call the
+    # helper directly to exercise the "nothing to report" path.
+    @dataclasses.dataclass
+    class NoCompare:
+        x: int = dataclasses.field(default=0, compare=False)
+
+    assert (
+        list(
+            _compare_eq_cls(
+                NoCompare(1),
+                NoCompare(2),
+                util.dummy_highlighter,
+                0,
+                util.ASSERTION_TEXT_DIFF_STYLE_NDIFF,
+            )
+        )
+        == []
+    )
 
 
 def test_reprcompare_whitespaces() -> None:
@@ -1882,10 +2194,12 @@ def test_issue_1944(pytester: Pytester) -> None:
 
 
 def test_exit_from_assertrepr_compare(monkeypatch) -> None:
+    from _pytest.assertion import _compare_any
+
     def raise_exit(obj):
         outcomes.exit("Quitting debugger")
 
-    monkeypatch.setattr(util, "istext", raise_exit)
+    monkeypatch.setattr(_compare_any, "istext", raise_exit)
 
     with pytest.raises(outcomes.Exit, match="Quitting debugger"):
         callequal(1, 1)
@@ -1958,6 +2272,16 @@ def test_reprcompare_verbose_long() -> None:
                 "{bold}{red}E         {reset}{light-gray} {hl-reset} {{{endline}{reset}",
                 "{bold}{red}E         {light-gray} {hl-reset}     'number-is-1': 1,{endline}{reset}",
                 "{bold}{red}E         {light-green}+     'number-is-5': 5,{hl-reset}{endline}{reset}",
+            ],
+        ),
+        (
+            """
+            def test():
+                assert "abcd" == "abce"
+            """,
+            [
+                "{bold}{red}E         {reset}{light-red}- abce{hl-reset}{endline}{reset}",
+                "{bold}{red}E         {light-green}+ abcd{hl-reset}{endline}{reset}",
             ],
         ),
     ),
@@ -2047,6 +2371,94 @@ def test_fine_grained_assertion_verbosity(pytester: Pytester):
     )
 
 
+def test_assertion_text_diff_style_block_for_multiline_strings(
+    pytester: Pytester,
+) -> None:
+    pytester.makepyfile(
+        r"""
+        actual = "alpha\n  beta\n"
+        expected = "alpha\n    beta"
+
+        def test_text_diff():
+            assert actual == expected
+        """
+    )
+    pytester.makeini(
+        f"""
+        [pytest]
+        assertion_text_diff_style = {util.ASSERTION_TEXT_DIFF_STYLE_BLOCK}
+        """
+    )
+
+    result = pytester.runpytest("-vv")
+
+    result.stdout.fnmatch_lines(
+        [
+            "E         Left:",
+            "E           alpha",
+            "E             beta",
+            "E           ",
+            "E         Right:",
+            "E           alpha",
+            "E               beta",
+        ]
+    )
+    result.stdout.no_fnmatch_line("*?     -*")
+
+
+def test_assertion_text_diff_style_block_for_single_line_strings(
+    pytester: Pytester,
+) -> None:
+    pytester.makepyfile(
+        """
+        def test_text_diff():
+            assert "spam" == "eggs"
+        """
+    )
+    pytester.makeini(
+        f"""
+        [pytest]
+        assertion_text_diff_style = {util.ASSERTION_TEXT_DIFF_STYLE_BLOCK}
+        """
+    )
+
+    result = pytester.runpytest("-vv")
+
+    result.stdout.fnmatch_lines(
+        [
+            "E         Left:",
+            "E           spam",
+            "E         Right:",
+            "E           eggs",
+        ]
+    )
+    result.stdout.no_fnmatch_line("*- eggs*")
+
+
+def test_assertion_text_diff_style_invalid(pytester: Pytester) -> None:
+    pytester.makepyfile(
+        """
+        def test_ok():
+            pass
+        """
+    )
+    pytester.makeini(
+        """
+        [pytest]
+        assertion_text_diff_style = side-by-side
+        """
+    )
+
+    result = pytester.runpytest()
+
+    assert result.ret == pytest.ExitCode.USAGE_ERROR
+    result.stderr.fnmatch_lines(
+        [
+            "*ERROR: assertion_text_diff_style must be one of 'ndiff', 'block'; got 'side-by-side'"
+        ]
+    )
+
+
 def test_full_output_vvv(pytester: Pytester) -> None:
     pytester.makepyfile(
         r"""
@@ -2078,3 +2490,34 @@ def test_full_output_vvv(pytester: Pytester) -> None:
         ]
     )
     result.stdout.no_fnmatch_line(expected_non_vvv_arg_line)
+
+
+def test_dict_extra_items_preserve_insertion_order(pytester: Pytester) -> None:
+    """Assertion output of dict diff shows keys in insertion order (#13503)."""
+    pytester.makepyfile(
+        test_order="""
+        def test_order():
+            a = {
+                "b": 2,
+                "a": 1,
+                "d": 4,
+                "e": 5,
+                "c": 3,
+            }
+            assert a == {}
+        """
+    )
+
+    result = pytester.runpytest("-vv")
+    result.stdout.fnmatch_lines(
+        [
+            "*Left contains 5 more items:*",
+            "*Full diff:",
+            "* + *'b': 2,",
+            "* + *'a': 1,",
+            "* + *'d': 4,",
+            "* + *'e': 5,",
+            "* + *'c': 3,",
+            "test_order.py:*: AssertionError",
+        ]
+    )

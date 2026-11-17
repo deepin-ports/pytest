@@ -244,6 +244,27 @@ def test_unittest_skip_issue148(pytester: Pytester) -> None:
     reprec.assertoutcome(skipped=1)
 
 
+def test_unittest_skip_with_autouse_fixture(pytester: Pytester) -> None:
+    """Autouse fixtures inside a @unittest.skipIf class should not run (#13885)."""
+    pytester.makepyfile(
+        """
+        import unittest
+        import pytest
+
+        @unittest.skipIf(True, "skip reason")
+        class TestSkipped(unittest.TestCase):
+            @pytest.fixture(autouse=True)
+            def my_fixture(self):
+                raise RuntimeError("fixture should not run")
+
+            def test_one(self):
+                pass
+    """
+    )
+    reprec = pytester.inline_run()
+    reprec.assertoutcome(skipped=1)
+
+
 def test_method_and_teardown_failing_reporting(pytester: Pytester) -> None:
     pytester.makepyfile(
         """
@@ -846,9 +867,11 @@ def test_unittest_setup_interaction(pytester: Pytester, stmt: str) -> None:
         import pytest
         class MyTestCase(unittest.TestCase):
             @pytest.fixture(scope="class", autouse=True)
-            def perclass(self, request):
+            @classmethod
+            def perclass(cls, request):
                 request.cls.hello = "world"
                 {stmt}
+
             @pytest.fixture(scope="function", autouse=True)
             def perfunction(self, request):
                 request.instance.funcname = request.function.__name__
@@ -1094,6 +1117,49 @@ def test_usefixtures_marker_on_unittest(base, pytester: Pytester) -> None:
     result.assert_outcomes(passed=2)
 
 
+def test_skip_setup_class(pytester: Pytester) -> None:
+    """Skipping tests in a class by raising unittest.SkipTest in `setUpClass` (#13985)."""
+    pytester.makepyfile(
+        """
+        import unittest
+
+        class Test(unittest.TestCase):
+
+            @classmethod
+            def setUpClass(cls):
+                raise unittest.SkipTest('Skipping setupclass')
+
+            def test_foo(self):
+                assert False
+
+            def test_bar(self):
+                assert False
+        """
+    )
+    result = pytester.runpytest()
+    result.assert_outcomes(skipped=2)
+
+
+def test_unittest_skip_function(pytester: Pytester) -> None:
+    """
+    Ensure raising an explicit unittest.SkipTest skips standard pytest functions.
+
+    Support for this is debatable -- technically we only support unittest.SkipTest in TestCase subclasses,
+    but stating this support here in this test because users currently expect this to work,
+    so if we ever break it we at least know we are breaking this use case (#13985).
+    """
+    pytester.makepyfile(
+        """
+        import unittest
+
+        def test_foo():
+            raise unittest.SkipTest('Skipping test_foo')
+        """
+    )
+    result = pytester.runpytest()
+    result.assert_outcomes(skipped=1)
+
+
 def test_testcase_handles_init_exceptions(pytester: Pytester) -> None:
     """
     Regression test to make sure exceptions in the __init__ method are bubbled up correctly.
@@ -1322,10 +1388,12 @@ def test_async_support(pytester: Pytester) -> None:
     reprec.assertoutcome(failed=1, passed=2)
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 11), reason="asynctest is not compatible with Python 3.11+"
+)
 def test_asynctest_support(pytester: Pytester) -> None:
     """Check asynctest support (#7110)"""
     pytest.importorskip("asynctest")
-
     pytester.copy_example("unittest/test_unittest_asynctest.py")
     reprec = pytester.inline_run()
     reprec.assertoutcome(failed=1, passed=2)
@@ -1374,7 +1442,7 @@ def test_do_class_cleanups_on_success(pytester: Pytester) -> None:
     """
     )
     reprec = pytester.inline_run(testpath)
-    passed, skipped, failed = reprec.countoutcomes()
+    passed, _skipped, failed = reprec.countoutcomes()
     assert failed == 0
     assert passed == 3
 
@@ -1398,7 +1466,7 @@ def test_do_class_cleanups_on_setupclass_failure(pytester: Pytester) -> None:
     """
     )
     reprec = pytester.inline_run(testpath)
-    passed, skipped, failed = reprec.countoutcomes()
+    passed, _skipped, failed = reprec.countoutcomes()
     assert failed == 1
     assert passed == 1
 
@@ -1426,7 +1494,7 @@ def test_do_class_cleanups_on_teardownclass_failure(pytester: Pytester) -> None:
     """
     )
     reprec = pytester.inline_run(testpath)
-    passed, skipped, failed = reprec.countoutcomes()
+    passed, _skipped, _failed = reprec.countoutcomes()
     assert passed == 3
 
 
@@ -1449,7 +1517,7 @@ def test_do_cleanups_on_success(pytester: Pytester) -> None:
     """
     )
     reprec = pytester.inline_run(testpath)
-    passed, skipped, failed = reprec.countoutcomes()
+    passed, _skipped, failed = reprec.countoutcomes()
     assert failed == 0
     assert passed == 3
 
@@ -1474,7 +1542,7 @@ def test_do_cleanups_on_setup_failure(pytester: Pytester) -> None:
     """
     )
     reprec = pytester.inline_run(testpath)
-    passed, skipped, failed = reprec.countoutcomes()
+    passed, _skipped, failed = reprec.countoutcomes()
     assert failed == 2
     assert passed == 1
 
@@ -1500,7 +1568,7 @@ def test_do_cleanups_on_teardown_failure(pytester: Pytester) -> None:
     """
     )
     reprec = pytester.inline_run(testpath)
-    passed, skipped, failed = reprec.countoutcomes()
+    passed, _skipped, failed = reprec.countoutcomes()
     assert failed == 2
     assert passed == 1
 
@@ -1614,7 +1682,7 @@ def test_traceback_pruning(pytester: Pytester) -> None:
         """
     )
     reprec = pytester.inline_run()
-    passed, skipped, failed = reprec.countoutcomes()
+    passed, _skipped, failed = reprec.countoutcomes()
     assert passed == 1
     assert failed == 1
     assert reprec.ret == 1

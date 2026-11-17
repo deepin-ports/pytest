@@ -1,6 +1,5 @@
 Source: pytest
 Section: python
-Priority: optional
 Maintainer: Debian Python Team <team+python@tracker.debian.org>
 Uploaders:
  Timo Röhling <roehling@debian.org>,
@@ -21,21 +20,21 @@ Build-Depends:
  python3-iniconfig,
  python3-numpy <!nocheck>,
  python3-packaging,
- python3-pluggy (>= 1.5.0),
+ python3-pluggy (>= 1.6.0),
  python3-pygments <!nocheck>,
  python3-requests <!nocheck>,
  python3-setuptools,
  python3-setuptools-scm,
  python3-sphinx <!nodoc>,
+ python3-sphinx-inline-tabs <!nodoc>,
  python3-sphinx-issues <!nodoc>,
  python3-sphinxcontrib-towncrier <!nodoc>,
  python3-xmlschema <!nocheck>,
-Standards-Version: 4.7.0
+Standards-Version: 4.7.4
 Homepage: https://pytest.org/
 Vcs-Git: https://salsa.debian.org/python-team/packages/pytest.git
 Vcs-Browser: https://salsa.debian.org/python-team/packages/pytest
 Testsuite: autopkgtest-pkg-pybuild
-Rules-Requires-Root: no
 
 Package: python-pytest-doc
 Section: doc
@@ -58,6 +57,12 @@ Architecture: all
 Depends:
  ${misc:Depends},
  ${python3:Depends},
+Breaks:
+ python3-pytest-subtests (<< 0.15.0+),
+Replaces:
+ python3-pytest-subtests (<< 0.15.0+),
+Provides:
+ python3-pytest-subtests,
 Recommends:
  python3-pygments,
 Description: Simple, powerful testing in Python3
@@ -65,4 +70,19 @@ Description: Simple, powerful testing in Python3
  boilerplate code around the tests, promoting the use of built-in
  mechanisms such as the `assert` keyword.
  .
- This package provides the Python 3 module and the py.test-3 script.
+ This package provides the Python 3 module and the pytest script.
+
+Package: python3-pytest-subtests
+Section: oldlibs
+Architecture: all
+Depends:
+ python3-pytest,
+ ${misc:Depends},
+Description: Subtests fixture plugin for pytest (transitional dummy package)
+ This package used to provide unittest subTest() support and a subtests
+ fixture, adding support for TestCase.subTest and providing similar
+ functionality for pure pytest tests.
+ .
+ Starting with Pytest 9, this functionality has been integrated into Pytest
+ itself. This is now a transitional dummy package to ease upgrades and can
+ be safely removed.
