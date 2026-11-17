@@ -1,9 +1,12 @@
+pytest (9.0.3-1deepin2) unstable; urgency=medium
+
+  * Restore python3-numpy test dependency.
+
+ -- purofle <purofle@gmail.com>  Tue, 17 Nov 2026 22:20:48 +0800
+
 pytest (9.0.3-1deepin1) unstable; urgency=medium
 
-  * Bootstrap for Python 3.14: drop the python3-numpy <!nocheck>
-    build-dependency (numpy build-depends on pytest, and OBS does not apply
-    the nocheck profile). numpy-related tests are skipped when numpy is
-    missing. Restore once numpy is rebuilt for 3.14.
+  * Drop python3-numpy test dependency to bootstrap numpy.
 
  -- purofle <purofle@gmail.com>  Tue, 17 Nov 2026 19:59:15 +0800
 
