@@ -5,7 +5,7 @@ Source: http://pytest.org/
 Files: *
 Copyright: 2014, Gregory Boissinot
            2004, Holger Krekel
-           pytest-dev contributors (see AUTHORS)
+	   pytest-dev contributors (see AUTHORS)
 License: Expat
 
 Files: debian/*

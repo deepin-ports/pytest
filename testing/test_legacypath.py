@@ -141,8 +141,7 @@ def test_addini_paths(pytester: pytest.Pytester, config_type: str) -> None:
     assert len(values) == 2
     assert values[0] == inipath.parent.joinpath("hello")
     assert values[1] == inipath.parent.joinpath("world/sub.py")
-    with pytest.raises(ValueError):
-        config.getini("other")
+    pytest.raises(ValueError, config.getini, "other")
 
 
 def test_override_ini_paths(pytester: pytest.Pytester) -> None:

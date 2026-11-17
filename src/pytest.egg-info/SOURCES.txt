@@ -1,3 +1,4 @@
+.coveragerc
 .git-blame-ignore-revs
 .gitattributes
 .gitignore
@@ -13,7 +14,6 @@ LICENSE
 OPENCOLLECTIVE.rst
 README.rst
 RELEASING.rst
-SECURITY.md
 TIDELIFT.rst
 codecov.yml
 pyproject.toml
@@ -27,7 +27,6 @@ tox.ini
 .github/patchback.yml
 .github/ISSUE_TEMPLATE/1_bug_report.md
 .github/ISSUE_TEMPLATE/2_feature_request.md
-.github/ISSUE_TEMPLATE/3_security_vulnerability.md
 .github/ISSUE_TEMPLATE/config.yml
 .github/workflows/deploy.yml
 .github/workflows/doc-check-links.yml
@@ -261,8 +260,6 @@ doc/en/announce/release-9.0.0.rst
 doc/en/announce/release-9.0.1.rst
 doc/en/announce/release-9.0.2.rst
 doc/en/announce/release-9.0.3.rst
-doc/en/announce/release-9.1.0.rst
-doc/en/announce/release-9.1.1.rst
 doc/en/announce/sprint2016.rst
 doc/en/example/.ruff.toml
 doc/en/example/attic.rst
@@ -430,19 +427,12 @@ src/_pytest/_py/__init__.py
 src/_pytest/_py/error.py
 src/_pytest/_py/path.py
 src/_pytest/assertion/__init__.py
-src/_pytest/assertion/_compare_any.py
-src/_pytest/assertion/_compare_mapping.py
-src/_pytest/assertion/_compare_sequence.py
-src/_pytest/assertion/_compare_set.py
-src/_pytest/assertion/_guards.py
-src/_pytest/assertion/_typing.py
-src/_pytest/assertion/compare_text.py
-src/_pytest/assertion/highlight.py
 src/_pytest/assertion/rewrite.py
 src/_pytest/assertion/truncate.py
 src/_pytest/assertion/util.py
 src/_pytest/config/__init__.py
 src/_pytest/config/argparsing.py
+src/_pytest/config/compat.py
 src/_pytest/config/exceptions.py
 src/_pytest/config/findpaths.py
 src/_pytest/mark/__init__.py

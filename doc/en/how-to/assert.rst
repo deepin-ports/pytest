@@ -64,6 +64,8 @@ it is printed alongside the assertion introspection in the traceback.
 
 See :ref:`assert-details` for more information on assertion introspection.
 
+.. _`assertraises`:
+
 Assertions about approximate equality
 -------------------------------------
 
@@ -90,8 +92,6 @@ errors are common. Instead of using ``assert abs(a - b) < tol`` or
 It also supports comparisons involving NaNs.
 
 See :func:`pytest.approx` for details.
-
-.. _`assertraises`:
 
 Assertions about expected exceptions
 ------------------------------------------
@@ -322,9 +322,13 @@ will then execute the function with those arguments and assert that the given ex
 
     pytest.raises(ValueError, func, x=-1)
 
+The reporter will provide you with helpful output in case of failures such as *no
+exception* or *wrong exception*.
+
 This form was the original :func:`pytest.raises` API, developed before the ``with`` statement was
 added to the Python language. Nowadays, this form is rarely used, with the context-manager form (using ``with``)
 being considered more readable.
+Nonetheless, this form is fully supported and not deprecated in any way.
 
 xfail mark and pytest.raises
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~

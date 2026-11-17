@@ -20,8 +20,7 @@ import pytest
 class TestModule:
     def test_failing_import(self, pytester: Pytester) -> None:
         modcol = pytester.getmodulecol("import alksdjalskdjalkjals")
-        with pytest.raises(Collector.CollectError):
-            modcol.collect()
+        pytest.raises(Collector.CollectError, modcol.collect)
 
     def test_import_duplicate(self, pytester: Pytester) -> None:
         a = pytester.mkdir("a")
@@ -73,15 +72,12 @@ class TestModule:
 
     def test_syntax_error_in_module(self, pytester: Pytester) -> None:
         modcol = pytester.getmodulecol("this is a syntax error")
-        with pytest.raises(modcol.CollectError):
-            modcol.collect()
-        with pytest.raises(modcol.CollectError):
-            modcol.collect()
+        pytest.raises(modcol.CollectError, modcol.collect)
+        pytest.raises(modcol.CollectError, modcol.collect)
 
     def test_module_considers_pluginmanager_at_import(self, pytester: Pytester) -> None:
         modcol = pytester.getmodulecol("pytest_plugins='xasdlkj',")
-        with pytest.raises(ImportError):
-            modcol.obj()
+        pytest.raises(ImportError, lambda: modcol.obj)
 
     def test_invalid_test_module_name(self, pytester: Pytester) -> None:
         a = pytester.mkdir("a")
@@ -527,42 +523,6 @@ class TestFunction:
         )
         rec = pytester.inline_run()
         rec.assertoutcome(passed=1)
-
-    def test_parametrize_overrides_parametrized_fixture_with_unrelated_indirect(
-        self, pytester: Pytester
-    ) -> None:
-        """Test parametrization when parameter overrides existing parametrized fixture with same name,
-        and there is an unrelated indirect param.
-
-        Regression test for #13974.
-        """
-        pytester.makepyfile(
-            """
-            import pytest
-
-            @pytest.fixture(params=["a", "b"])
-            def target(request):
-                return request.param
-
-            @pytest.fixture
-            def val(request):
-                return int(request.param)
-
-            @pytest.mark.parametrize(
-                ["val", "target"],
-                [
-                    ("1", 1),
-                    ("2", 2),
-                ],
-                indirect=["val"],
-            )
-            def test(val, target):
-                assert val == target
-            """
-        )
-        result = pytester.runpytest()
-        assert result.ret == 0
-        result.assert_outcomes(passed=2)
 
     def test_parametrize_overrides_indirect_dependency_fixture(
         self, pytester: Pytester

@@ -16,11 +16,10 @@ def test_version_verbose(pytester: Pytester, pytestconfig, monkeypatch) -> None:
         result.stdout.fnmatch_lines(["*registered third-party plugins:", "*at*"])
 
 
-@pytest.mark.parametrize("flag", ["--version", "-V"])
-def test_version_less_verbose(pytester: Pytester, flag: str) -> None:
-    """Single ``--version`` or ``-V`` should display only the pytest version, without loading plugins (#13574)."""
+def test_version_less_verbose(pytester: Pytester) -> None:
+    """Single ``--version`` parameter should display only the pytest version, without loading plugins (#13574)."""
     pytester.makeconftest("print('This should not be printed')")
-    result = pytester.runpytest_subprocess(flag)
+    result = pytester.runpytest_subprocess("--version")
     assert result.ret == ExitCode.OK
     assert result.stdout.str().strip() == f"pytest {pytest.__version__}"
 

@@ -14,7 +14,6 @@ from typing_extensions import assert_type
 
 import pytest
 from pytest import MonkeyPatch
-from pytest import ScopeName
 from pytest import TestReport
 
 
@@ -59,22 +58,3 @@ def check_raises_is_a_context_manager(val: bool) -> None:
 def check_testreport_attributes(report: TestReport) -> None:
     assert_type(report.when, Literal["setup", "call", "teardown"])
     assert_type(report.location, tuple[str, int | None, str])
-
-
-# Issue #14234.
-@pytest.mark.parametrize("x", [1, 2], ids=[pytest.HIDDEN_PARAM, "visible"])
-def test_hidden_param(x: int) -> None:
-    pass
-
-
-# Issue #14137.
-def check_scope_typing() -> None:
-
-    custom_scope: ScopeName = "function"
-    assert_type(custom_scope, ScopeName)
-
-
-# Issue #14606.
-@pytest.mark.parametrize("x", [ImportError, AttributeError])
-def check_mypy_bug_with_argvalues(x) -> None:
-    pass

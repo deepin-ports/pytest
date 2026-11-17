@@ -919,8 +919,7 @@ class TestSkipif:
                 pass
         """
         )
-        with pytest.raises(pytest.skip.Exception):
-            pytest_runtest_setup(item)
+        pytest.raises(pytest.skip.Exception, lambda: pytest_runtest_setup(item))
 
     @pytest.mark.parametrize(
         "marker, msg1, msg2",

@@ -184,16 +184,11 @@ def test_mark_on_pseudo_function(pytester: Pytester) -> None:
 
 
 @pytest.mark.parametrize(
-    "option",
-    [
-        "--strict-markers",
-        "--strict",
-        "strict_markers = true",
-        "strict = true",
-        "addopts = --strict-markers",
-    ],
+    "option_name", ["--strict-markers", "--strict", "strict_markers", "strict"]
 )
-def test_strict_prohibits_unregistered_markers(pytester: Pytester, option: str) -> None:
+def test_strict_prohibits_unregistered_markers(
+    pytester: Pytester, option_name: str
+) -> None:
     pytester.makepyfile(
         """
         import pytest
@@ -202,16 +197,16 @@ def test_strict_prohibits_unregistered_markers(pytester: Pytester, option: str) 
             pass
     """
     )
-    if option.startswith("-"):
-        result = pytester.runpytest(option)
-    else:
+    if option_name in ("strict_markers", "strict"):
         pytester.makeini(
             f"""
             [pytest]
-            {option}
+            {option_name} = true
             """
         )
         result = pytester.runpytest()
+    else:
+        result = pytester.runpytest(option_name)
     assert result.ret != 0
     result.stdout.fnmatch_lines(
         ["'unregisteredmark' not found in `markers` configuration option"]
@@ -740,8 +735,8 @@ class TestFunctional:
                 session.add_marker("mark1")
                 session.add_marker(pytest.mark.mark2)
                 session.add_marker(pytest.mark.mark3)
-                with pytest.raises(ValueError):
-                    session.add_marker(10)
+                pytest.raises(ValueError, lambda:
+                        session.add_marker(10))
         """
         )
         pytester.makepyfile(
@@ -1307,73 +1302,3 @@ def test_mark_parametrize_over_staticmethod(pytester: Pytester) -> None:
     )
     result = pytester.runpytest()
     result.assert_outcomes(passed=8)
-
-
-def test_fixture_disallow_on_marked_functions() -> None:
-    """Test that applying @pytest.fixture to a marked function errors (#3364)."""
-    with pytest.raises(
-        pytest.fail.Exception,
-        match=r"Marks cannot be applied to fixtures",
-    ):
-
-        @pytest.fixture
-        @pytest.mark.parametrize("example", ["hello"])
-        @pytest.mark.usefixtures("tmp_path")
-        def foo():
-            raise NotImplementedError()
-
-
-def test_fixture_disallow_marks_on_fixtures() -> None:
-    """Test that applying a mark to a fixture errors (#3364)."""
-    with pytest.raises(
-        pytest.fail.Exception,
-        match=r"Marks cannot be applied to fixtures",
-    ):
-
-        @pytest.mark.parametrize("example", ["hello"])
-        @pytest.mark.usefixtures("tmp_path")
-        @pytest.fixture
-        def foo():
-            raise NotImplementedError()
-
-
-def test_fixture_disallowed_between_marks() -> None:
-    """Test that applying a mark to a fixture errors (#3364)."""
-    with pytest.raises(
-        pytest.fail.Exception,
-        match=r"Marks cannot be applied to fixtures",
-    ):
-
-        @pytest.mark.parametrize("example", ["hello"])
-        @pytest.fixture
-        @pytest.mark.usefixtures("tmp_path")
-        def foo():
-            raise NotImplementedError()
-
-
-def test_module_getattr_without_attributeerror(pytester: Pytester) -> None:
-    """
-    Test that a helpful warning is emitted when a module-level
-    __getattr__ returns None instead of raising AttributeError.
-
-    Regression test for https://github.com/pytest-dev/pytest/issues/8265
-    """
-    pytester.makepyfile(
-        """
-        def __getattr__(key):
-            # Bug: should raise AttributeError, but returns None
-            return None
-
-        def test_something():
-            assert True
-        """
-    )
-    result = pytester.runpytest("-W", "always::pytest.PytestCollectionWarning")
-    result.stdout.fnmatch_lines(
-        [
-            "*PytestCollectionWarning*__getattr__*returns None*AttributeError*",
-        ]
-    )
-    # The module is buggy (__getattr__ returns None for all attributes),
-    # so no tests are collected, but pytest should NOT crash with a TypeError.
-    assert result.ret != ExitCode.INTERNAL_ERROR

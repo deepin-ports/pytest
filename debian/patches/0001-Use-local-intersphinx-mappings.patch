@@ -8,10 +8,10 @@ Forwarded: not-needed
  1 file changed, 7 insertions(+), 4 deletions(-)
 
 diff --git a/doc/en/conf.py b/doc/en/conf.py
-index 04ba1cf..359d856 100644
+index 8115649..1f374b3 100644
 --- a/doc/en/conf.py
 +++ b/doc/en/conf.py
-@@ -133,14 +133,17 @@ autodoc_typehints_description_target = "documented"
+@@ -123,14 +123,17 @@ autodoc_typehints_description_target = "documented"
  # -- Options for intersphinx ----------------------------------------------------------
  # https://www.sphinx-doc.org/en/master/usage/extensions/intersphinx.html#configuration
  

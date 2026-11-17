@@ -2,7 +2,6 @@
 
 .. sidebar:: **Next Open Trainings and Events**
 
-    - `pytest development sprint <https://github.com/pytest-dev/sprint>`_, **July 20th -- 24th**, Klaus (AT), sign-up open until June 15th
     - `Professional Testing with Python <https://python-academy.com/courses/python_course_testing.html>`_, via `Python Academy <https://www.python-academy.com/>`_ (3 day in-depth training), **March 9th -- 11th 2027**, Leipzig (DE) / Remote
 
     Also see :doc:`previous talks and blogposts <talks>`
@@ -151,4 +150,6 @@ Save time, reduce risk, and improve code health, while paying the maintainers of
 Security
 ~~~~~~~~
 
-If you have found an issue that you believe is a security vulnerability, please do not create an issue -- instead, report it via a `new security advisory <https://github.com/pytest-dev/pytest/security/advisories/new>`__.
+pytest has never been associated with a security vulnerability, but in any case, to report a
+security vulnerability please use the `Tidelift security contact <https://tidelift.com/security>`_.
+Tidelift will coordinate the fix and disclosure.

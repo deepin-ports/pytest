@@ -1049,8 +1049,7 @@ without having to repeat all those steps again.
 
     class TestLandingPageSuccess:
         @pytest.fixture(scope="class", autouse=True)
-        @classmethod
-        def login(cls, driver, base_url, user):
+        def login(self, driver, base_url, user):
             driver.get(urljoin(base_url, "/login"))
             page = LoginPage(driver)
             page.login(user)
@@ -1093,8 +1092,7 @@ could handle it by adding something like this to the test file:
 
     class TestLandingPageBadCredentials:
         @pytest.fixture(scope="class")
-        @classmethod
-        def faux_user(cls, user):
+        def faux_user(self, user):
             _user = deepcopy(user)
             _user.password = "badpass"
             return _user
@@ -1425,7 +1423,7 @@ Running the above tests results in the following test IDs being used:
    rootdir: /home/sweet/project
    collected 12 items
 
-   <Dir fixtures.rst-236>
+   <Dir fixtures.rst-234>
      <Module test_anothersmtp.py>
        <Function test_showhelo[smtp.gmail.com]>
        <Function test_showhelo[mail.python.org]>
@@ -1748,14 +1746,16 @@ into a configuration file:
 
 .. warning::
 
-    ``@pytest.mark.usefixtures`` cannot be used on **fixture functions**. For example,
-    this is an error:
+    Note this mark has no effect in **fixture functions**. For example,
+    this **will not work as expected**:
 
     .. code-block:: python
 
         @pytest.mark.usefixtures("my_other_fixture")
         @pytest.fixture
         def my_fixture_that_sadly_wont_use_my_other_fixture(): ...
+
+    This generates a deprecation warning, and will become an error in Pytest 8.
 
 .. _`override fixtures`:
 
@@ -1765,8 +1765,8 @@ Overriding fixtures on various levels
 In a relatively large test suite, you may want to *override* a fixture, to augment
 or change its behavior inside of certain test modules or directories.
 
-Override a fixture on a directory (conftest) level
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Override a fixture on a folder (conftest) level
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Given the tests file structure is:
 
@@ -1786,9 +1786,9 @@ Given the tests file structure is:
             def test_username(username):
                 assert username == 'username'
 
-        subdir/
+        subfolder/
             conftest.py
-                # content of tests/subdir/conftest.py
+                # content of tests/subfolder/conftest.py
                 import pytest
 
                 @pytest.fixture
@@ -1796,7 +1796,7 @@ Given the tests file structure is:
                     return 'overridden-' + username
 
             test_something_else.py
-                # content of tests/subdir/test_something_else.py
+                # content of tests/subfolder/test_something_else.py
                 def test_username(username):
                     assert username == 'overridden-username'
 
@@ -1929,7 +1929,7 @@ Given the tests file structure is:
 
 In the example above, a parametrized fixture is overridden with a non-parametrized version, and
 a non-parametrized fixture is overridden with a parametrized version for certain test module.
-The same applies for the test directory level obviously.
+The same applies for the test folder level obviously.
 
 
 Using fixtures from other projects

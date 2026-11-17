@@ -10,7 +10,7 @@ Forwarded: not-needed
  1 file changed, 3 deletions(-)
 
 diff --git a/doc/en/conf.py b/doc/en/conf.py
-index 359d856..c795b4a 100644
+index 1f374b3..c1794aa 100644
 --- a/doc/en/conf.py
 +++ b/doc/en/conf.py
 @@ -27,15 +27,12 @@ release = ".".join(version.split(".")[:2])

@@ -245,7 +245,7 @@ This results in a drawback compared to the import mode ``importlib``:
 your test files must have **unique names**.
 
 If you need to have test modules with the same name,
-as a workaround you might add ``__init__.py`` files to your ``tests`` directory and subdirectories,
+as a workaround you might add ``__init__.py`` files to your ``tests`` folder and subfolders,
 changing them to packages:
 
 .. code-block:: text
