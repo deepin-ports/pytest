@@ -1,3 +1,12 @@
+pytest (9.0.3-1deepin1) unstable; urgency=medium
+
+  * Bootstrap for Python 3.14: drop the python3-numpy <!nocheck>
+    build-dependency (numpy build-depends on pytest, and OBS does not apply
+    the nocheck profile). numpy-related tests are skipped when numpy is
+    missing. Restore once numpy is rebuilt for 3.14.
+
+ -- purofle <purofle@gmail.com>  Tue, 17 Nov 2026 19:59:15 +0800
+
 pytest (9.0.3-1) unstable; urgency=medium
 
   * New upstream version 9.0.3

@@ -19,7 +19,6 @@ Build-Depends:
  python3-doc <!nodoc>,
  python3-hypothesis <!nocheck>,
  python3-iniconfig,
- python3-numpy <!nocheck>,
  python3-packaging,
  python3-pluggy (>= 1.6.0),
  python3-pygments <!nocheck>,
